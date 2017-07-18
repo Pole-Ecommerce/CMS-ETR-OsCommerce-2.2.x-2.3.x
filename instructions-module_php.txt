@@ -1,0 +1,47 @@
+Module de paiement e-transactions pour OsCommerce 2.3.x
+Version 1.5 Dec.2016
+ 
+instructions-module_php.txt
+instructions for module.php manual modification
+
+@ author: e-transactions 2016
+
+OSCommerce confie à un fichier unique l'affichage des modules dans l'administration.
+ainsi, pour modifier le comportement d'un champ en particulier, il faut modifier ce fichier d'oscommerce.
+
+ce fichier est inclu dans l'arborescence, mais nous détaillons ici la modification manuelle du fichier, en incluant le code à insérer.
+
+La sécurisation de la clé secrète HMAC requiert la modification du fichier oscommerce modules.php:
+racine du site /admin/modules.php
+Si vous avez modifié le nom du répertoire admin par sécurité, c'est dans ce répertoire que vous trouverez le fichier modules.php
+Trois blocs sont concernés.
+
+
+
+
+Premier Bloc: on requiert la classe de cryptage, et on instancie un objet de cette classe.
+ce bloc doit être positionné en début du fichier, après l'inclusion du fichier 'application_top.php
+
+ 
+/**	begin-block ***** after application_top inclusion*
+	load the class file for encryption, and instantiate the object*/
+  require_once('../ext/modules/payment/Etransactions/EtransactionsEncrypt.php');
+  $crypto = new ETransactionsEncrypt();
+/* end-block*/
+
+Deuxième bloc: lors de la sauvegarde des paramètres, on va crypter la clé secrète avant l'enregistrement en base de données.
+ce bloc doit être positionné dans le switch sur l'action, dans le cas d'un 'save' , pendant la boucle sur le $HTTP_POST_VARS['configuration']
+
+/**	begin-block ********** inside switch($action), case: save, inside first while loop on $HTTP_POST_VARS['configuration'] *
+ 	if we are saving the configuration, then encrypt the secret key before storage*/
+if($key == 'MODULE_PAYMENT_Etransactions_HMACKEY')$value = $crypto->encrypt($value);
+/*end-block*/
+
+
+Troisième bloc: lors del'affichage de la page du module, on doit décrypter la clé avant de l'afficher.
+ce bloc doit être positionné dans la dernière boucle sur le répertoire des modules, et dans la boucle sur les clés du module en cours.
+
+/**	begin-block *** inside for loop on directory, inside for loop on module keys*
+	if the current key we are aquiring is the hmac key, we need to decrypt it before we can display it.*/
+if($module_keys[$j]=='MODULE_PAYMENT_Etransactions_HMACKEY')$key_value['configuration_value'] = $crypto->decrypt($key_value['configuration_value']);
+/*end-block */
